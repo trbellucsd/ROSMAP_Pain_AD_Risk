@@ -1,0 +1,276 @@
+library(devtools)
+library(umx)
+library (OpenMx)
+library (haven)
+library (dplyr)
+library(car)
+library(psych)
+library(lme4)
+library(nlme)
+library(lmerTest)
+library(ggplot2)
+library(tidyverse)
+library(lme4)
+library(car)
+library(multilevelTools)
+library(haven)
+library(JWileymisc)
+library(effects)
+library(sjPlot)
+library(sjmisc)
+library(splines)
+source("C:/Users/trbell/Documents/OpenMx Workshop 2023/GenEpiHelperFunctions.R")
+source("C:/Users/trbell/Documents/OpenMx Workshop 2023polychoricMeansMatrix3.R")
+
+#SET WORKING DIRECTORY; 
+
+setwd("Z:/Tyler/Projects and Paper Drafts/ROSMAP")
+
+#READ IN DATA; 
+ACTIVE<-NA
+ACTIVE <- read_sav("ROSMAP_long_11202023.sav",encoding="latin1")
+names(ACTIVE)
+names(ACTIVE)<- toupper(names(ACTIVE))
+ACTIVE$APOE_E4_STATUS
+#DATA SELECTION; WE SELECTED THE CONTROL GROUP OF ACTIVE;  
+ACTIVE.mem.sub<-NA
+
+ACTIVE$newvariable <- ifelse(ACTIVE$CP_R.1 == 0 & ACTIVE$APOE_E4_STATUS == 0, 1,
+                                     ifelse(ACTIVE$CP_R.1 == 0 & ACTIVE$APOE_E4_STATUS == 1, 2,
+                                            ifelse(ACTIVE$CP_R.1 == 1 & ACTIVE$APOE_E4_STATUS == 0, 3,
+                                                   ifelse(ACTIVE$CP_R.1 == 1 & ACTIVE$APOE_E4_STATUS == 1, 4, NA))))
+
+ACTIVE.sub <- subset(ACTIVE, !is.na(newvariable) & COGDX < 4)
+  
+  model.WO <- lmer(COGN_EP ~ CP_R.1 + AGE_AT_VISIT + APOE_E4_STATUS + APOE_E4_STATUS*AGE_AT_VISIT + 
+                        CP_R.1*AGE_AT_VISIT + CP_R.1*APOE_E4_STATUS + MSEX + ZEDUC + 
+                     AGE_AT_VISIT*CP_R.1*APOE_E4_STATUS + (1| PROJID), ACTIVE, REML=FALSE) 
+  summary(model.WO)
+ACTIVE$CP_R.1 <-as_factor(ACTIVE$CP_R.1)
+ACTIVE.sub$newvariable <-as_factor(ACTIVE.sub$newvariable)
+ACTIVE.wo.sub$newvariable <-as_factor(ACTIVE.wo.sub$newvariable)
+
+model.result2 <- lmer(MEM_COMP ~  INDEX1 + EDUCLEVL + RACE_CAT + GENDER_CAT + AGE_BC +  MMSE_B 
+                      +  INTGRP + DEP_9_BIN +  INTGRP*INDEX1 
+                      +  DEP_9_BIN*INDEX1 + INTGRP*DEP_9_BIN 
+                      + INTGRP*INDEX1*DEP_9_BIN  + DEP_NVALID
+                      + (1| ID ), ACTIVE.mem.sub, REML=FALSE) 
+summary(model.result2)
+
+model.WO <- lmer(COGN_EP ~ CP_R.1 + AGE_AT_VISIT + APOE_E4_STATUS + APOE_E4_STATUS*AGE_AT_VISIT + 
+                   CP_R.1*AGE_AT_VISIT + CP_R.1*APOE_E4_STATUS + MSEX + ZEDUC + 
+                   AGE_AT_VISIT*CP_R.1*APOE_E4_STATUS + AGE_AT_VISIT2 + (1| PROJID), ACTIVE.mem.sub, REML=FALSE) 
+summary(model.WO)
+ACTIVE$FU_YEAR
+ACTIVE$newvariable
+ACTIVE$newvariable<-NA
+ACTIVE.speed.sub$newvariable<-NA
+# Assuming your data frame is called "your_data"
+
+labels <- c("1" = "No MCP - APOE e4-", "2" = "No MCP - APOE e4+", "3" = "MCP - APOE e4-", "4" = "MCP - APOE e4+")
+ACTIVE.ep.sub$AGE_AT_VISIT2 <-ACTIVE.ep.sub$AGE_AT_VISIT*ACTIVE.ep.sub$AGE_AT_VISIT 
+#plot model predictions; 
+ACTIVE.ep.sub <- subset(ACTIVE, complete.cases(APOE_E4_STATUS,COGN_EP, CP_R.1, ZEDUC,MSEX, AGE_AT_VISIT,PROJID) & COGDX < 4)
+COGN_EP_ADJ_MODEL <- lmer(COGN_EP ~ CP_R.1 + AGE_AT_VISIT + APOE_E4_STATUS + 
+                            MSEX + ZEDUC + AGE_AT_VISIT2 + CP_R.1*AGE_AT_VISIT*APOE_E4_STATUS + (1| PROJID), ACTIVE.ep.sub, REML = FALSE)
+
+summary(COGN_EP_ADJ_MODEL)
+
+
+ACTIVE.ep.sub$COGN_EP_ADJ <- resid(COGN_EP_ADJ_MODEL)
+ACTIVE.ep.sub$newvariable <-as_factor(ACTIVE.ep.sub$newvariable)
+
+ep <- ggplot(ACTIVE.ep.sub, aes(x = AGE_AT_VISIT, y = scale(COGN_EP_ADJ), color = newvariable, linetype = newvariable)) +
+  geom_smooth(method = "gam", se = TRUE, fullrange = TRUE, size = 1.5) +
+  labs(x = "Age",
+       y = "Memory",
+       color = "Group",
+       linetype = "Group") + 
+  theme_minimal() + ylim(-3, 3) + xlim(70, 100)  + 
+  theme(text = element_text(size = 16)) +  # Adjust size as needed
+  
+  scale_color_manual(values = c("1" = "salmon", "2" = "chartreuse4", "3" = "mediumpurple4", "4" = "cyan3"), labels = labels) +
+  scale_linetype_manual(values = c("1" = "dashed", "2" = "solid", "3" = "dotted", "4" = "dotdash"), labels = labels)
+
+ep
+
+
+ACTIVE.ps.sub <- subset(ACTIVE, complete.cases(APOE_E4_STATUS,COGN_PS, CP_R.1, ZEDUC,MSEX, AGE_AT_VISIT,PROJID) & COGDX < 4)
+COGN_PS_ADJ_MODEL <- lmer(COGN_PS ~ CP_R.1 + AGE_AT_VISIT + APOE_E4_STATUS + 
+                            MSEX + ZEDUC  + (1| PROJID), ACTIVE.ps.sub, REML = FALSE)
+
+summary(COGN_PS_ADJ_MODEL)
+
+
+ACTIVE.ps.sub$COGN_PS_ADJ <- resid(COGN_PS_ADJ_MODEL)
+ACTIVE.ps.sub$newvariable <-as_factor(ACTIVE.ps.sub$newvariable)
+
+
+PS <- ggplot(ACTIVE.ps.sub, aes(x = AGE_AT_VISIT, y = scale(COGN_PS_ADJ), color = newvariable, linetype = newvariable)) +
+  geom_smooth(method = "lm", se = TRUE, fullrange = TRUE, size = 1.5) +
+  labs(x = "Age",
+       y = "Processing Speed",
+       color = "Group",
+       linetype = "Group") + 
+  theme_minimal() + ylim(-3, 3) + 
+  theme(text = element_text(size = 16)) +  # Adjust size as needed
+  
+  scale_color_manual(values = c("1" = "salmon", "2" = "chartreuse4", "3" = "mediumpurple4", "4" = "cyan3"), labels = labels) +
+  scale_linetype_manual(values = c("1" = "dashed", "2" = "solid", "3" = "dotted", "4" = "dotdash"), labels = labels)
+PS
+
+
+ACTIVE.po.sub <- subset(ACTIVE, complete.cases(APOE_E4_STATUS,COGN_PO, CP_R.1, ZEDUC,MSEX, AGE_AT_VISIT,PROJID) & COGDX < 4)
+COGN_PO_ADJ_MODEL <- lmer(COGN_PO ~ CP_R.1 + AGE_AT_VISIT + APOE_E4_STATUS + 
+                            MSEX + ZEDUC  + (1| PROJID), ACTIVE.po.sub, REML = FALSE)
+
+summary(COGN_PO_ADJ_MODEL)
+
+
+ACTIVE.po.sub$COGN_PO_ADJ <- resid(COGN_PO_ADJ_MODEL)
+ACTIVE.po.sub$newvariable <-as_factor(ACTIVE.po.sub$newvariable)
+
+PO <- ggplot(ACTIVE.po.sub, aes(x = AGE_AT_VISIT, y = scale(COGN_PO_ADJ), color = newvariable, linetype = newvariable)) +
+  geom_smooth(method = "lm", se = TRUE, fullrange = TRUE, size = 1.5) +
+  labs(x = "Age",
+       y = "Perceptual Orientation",
+       color = "Group",
+       linetype = "Group") + 
+  theme_minimal() + ylim(-2, 2) + 
+  theme(text = element_text(size = 16)) +  # Adjust size as needed
+  
+  scale_color_manual(values = c("1" = "salmon", "2" = "chartreuse4", "3" = "mediumpurple4", "4" = "cyan3"), labels = labels) +
+  scale_linetype_manual(values = c("1" = "dashed", "2" = "solid", "3" = "dotted", "4" = "dotdash"), labels = labels)
+PO
+
+
+ACTIVE.wo.sub <- subset(ACTIVE, complete.cases(APOE_E4_STATUS,COGN_WO, CP_R.1, ZEDUC,MSEX, AGE_AT_VISIT,PROJID) & COGDX < 4)
+COGN_WO_ADJ_MODEL <- lmer(COGN_WO ~ CP_R.1 + AGE_AT_VISIT + APOE_E4_STATUS + 
+                            MSEX + ZEDUC  + (1| PROJID), ACTIVE.wo.sub, REML = FALSE)
+
+summary(COGN_WO_ADJ_MODEL)
+
+
+ACTIVE.wo.sub$COGN_WO_ADJ <- resid(COGN_WO_ADJ_MODEL)
+ACTIVE.wo.sub$newvariable <-as_factor(ACTIVE.wo.sub$newvariable)
+
+WO<- ggplot(ACTIVE.wo.sub, aes(x = AGE_AT_VISIT, y = scale(COGN_WO_ADJ), color = newvariable, linetype = newvariable)) +
+  geom_smooth(method = "lm", se = TRUE, fullrange = TRUE, size = 1.5) +
+  labs(x = "Age",
+       y = "Working Memory",
+       color = "Group",
+       linetype = "Group") + 
+  theme_minimal() + ylim(-3, 3) + 
+  theme(text = element_text(size = 16)) +  # Adjust size as needed
+  
+  scale_color_manual(values = c("1" = "salmon", "2" = "chartreuse4", "3" = "mediumpurple4", "4" = "cyan3"), labels = labels) +
+  scale_linetype_manual(values = c("1" = "dashed", "2" = "solid", "3" = "dotted", "4" = "dotdash"), labels = labels)
+WO
+
+GLOBAL<- ggplot(ACTIVE, aes(x = AGE_AT_VISIT, y = scale(COGN_GLOBAL), color = newvariable, linetype = newvariable)) +
+  geom_smooth(method = "lm", se = TRUE, fullrange = TRUE, size = 1.5) +
+  labs(x = "Age",
+       y = "Global Cognition",
+       color = "Group",
+       linetype = "Group") + 
+  theme_minimal() + ylim(-3, 3) + 
+  theme(text = element_text(size = 16)) +  # Adjust size as needed
+  
+  scale_color_manual(values = c("1" = "salmon", "2" = "chartreuse4", "3" = "mediumpurple4", "4" = "cyan3"), labels = labels) +
+  scale_linetype_manual(values = c("1" = "dashed", "2" = "solid", "3" = "dotted", "4" = "dotdash"), labels = labels)
+
+
+
+  
+  memory
+  speed
+  PO
+  WO
+  GLOBAL
+  
+  model.WO <- lmer(COGN_EP ~ CP_R.1 + AGE_AT_VISIT + APOE_E4_STATUS + APOE_E4_STATUS*AGE_AT_VISIT + 
+                        CP_R.1*AGE_AT_VISIT + CP_R.1*APOE_E4_STATUS + MSEX + ZEDUC + 
+                     AGE_AT_VISIT*CP_R.1*APOE_E4_STATUS + (1| PROJID), ACTIVE, REML=FALSE) 
+  summary(model.WO)
+  sjPlot::plot_model(
+    model.WO,
+    type = "int",
+    terms = c("CP_R.1", "AGE_AT_VISIT"),
+    show.values = TRUE,
+    show.p = TRUE,
+    show.legend = TRUE,
+    title = "Predicted Values Plot",
+    colors = c("blue", "red"),
+    facet.grid = ~ APOE_E4_STATUS
+  )
+  
+  library(sjPlot)
+  model.MEM <- lmer(COGN_EP ~ CP_R.1 + AGE_AT_VISIT + APOE_E4_STATUS + APOE_E4_STATUS*AGE_AT_VISIT + 
+                     CP_R.1*AGE_AT_VISIT + CP_R.1*APOE_E4_STATUS + MSEX + ZEDUC + 
+                     CP_R.1*AGE_AT_VISIT*APOE_E4_STATUS + (1| PROJID), ACTIVE, REML=FALSE) 
+  summary(model.MEM)
+  library(splines)
+  selvar<-c("APOE_E4_STATUS","COGN_EP", "CP_R.1", "ZEDUC","MSEX", "AGE_AT_VISIT","PROJID")
+  library(splines)
+  
+  model.ep.spline <- lmer(COGN_EP ~ CP_R.1 + ns(AGE_AT_VISIT - 80, df = 3) + APOE_E4_STATUS + 
+                     APOE_E4_STATUS*AGE_AT_VISIT + CP_R.1*AGE_AT_VISIT + 
+                     CP_R.1*APOE_E4_STATUS + MSEX + ZEDUC + 
+                     ns(CP_R.1*AGE_AT_VISIT*APOE_E4_STATUS, AGE_AT_VISIT - 80, df = 3) + (1| PROJID), ACTIVE, REML = FALSE)
+  
+  summary(model.ep.spline)
+  
+library(officer)
+library(rvg)
+pptx <- read_pptx()
+
+pptx %>%
+  add_slide() %>%
+  # This first line puts it in as a static png image for comparison
+  ph_with(memory2, location = ph_location_type(type = "body")) %>%
+  add_slide() %>%
+  # This line puts in a shape object, which can be ungrouped and edited
+  ph_with(rvg::dml(ggobj = memory2),
+          width = 8,
+          height = 4,
+          location = ph_location_type(type = "body"))
+
+#> pptx document with 2 slide(s)
+
+print(pptx, "test_graph.pptx")
+pptx <- read_pptx()
+
+pptx %>%
+  add_slide() %>%
+  # This first line puts it in as a static png image for comparison
+  ph_with(reas2, location = ph_location_type(type = "body")) %>%
+  add_slide() %>%
+  # This line puts in a shape object, which can be ungrouped and edited
+  ph_with(rvg::dml(ggobj = reas2),
+          width = 8,
+          height = 4,
+          location = ph_location_type(type = "body"))
+
+#> pptx document with 2 slide(s)
+
+print(pptx, "test_graph.pptx")
+
+pptx <- read_pptx()
+
+pptx %>%
+  add_slide() %>%
+  # This first line puts it in as a static png image for comparison
+  ph_with(speed2, location = ph_location_type(type = "body")) %>%
+  add_slide() %>%
+  # This line puts in a shape object, which can be ungrouped and edited
+  ph_with(rvg::dml(ggobj = speed2),
+          width = 8,
+          height = 4,
+          location = ph_location_type(type = "body"))
+
+#> pptx document with 2 slide(s)
+
+print(pptx, "test_graph.pptx")
+
+
+sessionInfo()
