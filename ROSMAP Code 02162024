@@ -1,0 +1,439 @@
+library(devtools)
+library(umx)
+library (OpenMx)
+library (haven)
+library (dplyr)
+library(car)
+library(psych)
+library(lme4)
+library(nlme)
+library(lmerTest)
+library(ggplot2)
+library(tidyverse)
+library(lme4)
+library(car)
+library(multilevelTools)
+library(haven)
+library(JWileymisc)
+library(effects)
+library(sjPlot)
+library(sjmisc)
+library(splines)
+library(officer)
+library(rvg)
+library("table1")
+source("C:/Users/trbell/Documents/OpenMx Workshop 2023/GenEpiHelperFunctions.R")
+source("C:/Users/trbell/Documents/OpenMx Workshop 2023/polychoricMeansMatrix3.R")
+
+#SET WORKING DIRECTORY; 
+
+setwd("Z:/Tyler/Projects and Paper Drafts/ROSMAP")
+
+#READ IN DATA; 
+ROSMAP<-NA
+ROSMAP <- read_sav("ROSMAP Data Long 02122024.sav",encoding="latin1")
+names(ROSMAP)
+names(ROSMAP)<- toupper(names(ROSMAP))
+
+#DATA SELECTION; WE SELECTED THE CONTROL GROUP OF ROSMAP;  
+
+ROSMAP$newvariable <- ifelse(ROSMAP$MCP.1 == 0 & ROSMAP$APOE_E4_STATUS == 0, 1,
+                             ifelse(ROSMAP$MCP.1 == 0 & ROSMAP$APOE_E4_STATUS == 1, 2,
+                                    ifelse(ROSMAP$MCP.1 == 1 & ROSMAP$APOE_E4_STATUS == 0, 3,
+                                           ifelse(ROSMAP$MCP.1 == 1 & ROSMAP$APOE_E4_STATUS == 1, 4, NA))))
+
+ROSMAP$MCP.1 <-as_factor(ROSMAP$MCP.1)
+ROSMAP$newvariable <-as_factor(ROSMAP$newvariable)
+
+
+
+ROSMAP.sub<-subset(ROSMAP, DCFDX.0<4)
+
+#GLOBAL FUNCTION; 
+
+ROSMAP.global.sub <- subset(ROSMAP.sub, complete.cases(COGN_GLOBAL,MCP.1,APOE_E4_STATUS) & COGDX<4)
+
+
+
+model_COGN_GLOBAL <- lmer(scale(COGN_GLOBAL) ~  MSEX + EDUC + RACE_RC + MED_CON_SUM_BL +
+                        MCP.1*AGE_AT_VISIT*LEONENKO_APOE  + AGE_AT_VISIT.0+ (1| PROJID), ROSMAP.ep.sub, REML = FALSE)
+
+summary(model_COGN_GLOBAL)
+
+
+model_COGN_GLOBAL.tab<-tab_model(model_COGN_GLOBAL, p.val = "kr", show.stat=TRUE,show.se = TRUE)
+
+
+#ROSMAP.global.sub$COGN_GLOBAL_ADJ <- resid(COGN_PS_GLOBAL_MODEL)
+
+
+GLOBAL <- ggplot(ROSMAP.global.sub, aes(x = AGE_AT_VISIT, y = COGN_GLOBAL, color = as.factor(newvariable), linetype = as.factor(newvariable))) +
+  geom_smooth(method = "lm", se = TRUE, fullrange = TRUE, size = 1.5) +
+  labs(x = "Age",
+       y = "Memory",
+       color = "Group",
+       linetype = "Group") + 
+  theme_minimal() + ylim(-3, 3) + xlim(70, 100)  + 
+  theme(text = element_text(size = 16)) +  # Adjust size as needed
+  
+  scale_color_manual(values = c("1" = "salmon", "2" = "chartreuse4", "3" = "mediumpurple4", "4" = "cyan3"), labels = labels) +
+  scale_linetype_manual(values = c("1" = "dashed", "2" = "solid", "3" = "dotted", "4" = "dotdash"), labels = labels)
+
+GLOBAL
+
+#EPISODIC MEMORY; 
+
+ROSMAP.ep.sub <- subset(ROSMAP.sub, complete.cases(COGN_EP,MCP.1,APOE_E4_STATUS) & COGDX<4)
+
+
+
+model_COGN_EP <- lmer(scale(COGN_EP) ~  MSEX + EDUC + RACE_RC + MED_CON_SUM_BL +
+                 MCP.1*AGE_AT_VISIT*LEONENKO_APOE  + AGE_AT_VISIT.0+ (1| PROJID), ROSMAP.ep.sub, REML = FALSE)
+
+summary(model_COGN_EP)
+
+
+model_COGN_EP.tab<-tab_model(model_COGN_EP, p.val = "kr", show.stat=TRUE,show.se = TRUE)
+
+
+#ROSMAP.ep.sub$COGN_EP_ADJ <- resid(COGN_EP_ADJ_MODEL)
+
+
+EP <- ggplot(ROSMAP.ep.sub, aes(x = AGE_AT_VISIT, y = COGN_EP, color = as.factor(newvariable), linetype = as.factor(newvariable))) +
+  geom_smooth(method = "lm", se = TRUE, fullrange = TRUE, size = 1.5) +
+  labs(x = "Age",
+       y = "Memory",
+       color = "Group",
+       linetype = "Group") + 
+  theme_minimal() + ylim(-3, 3) + xlim(70, 100)  + 
+  theme(text = element_text(size = 16)) +  # Adjust size as needed
+  
+  scale_color_manual(values = c("1" = "salmon", "2" = "chartreuse4", "3" = "mediumpurple4", "4" = "cyan3"), labels = labels) +
+  scale_linetype_manual(values = c("1" = "dashed", "2" = "solid", "3" = "dotted", "4" = "dotdash"), labels = labels)
+
+EP
+
+#WORKING MEMORY; 
+
+ROSMAP.wo.sub <- subset(ROSMAP.sub, complete.cases(COGN_WO,MCP.1,APOE_E4_STATUS) & COGDX<4)
+
+
+
+model_COGN_WO <- lmer(scale(COGN_WO) ~  MSEX + EDUC + RACE_RC + MED_CON_SUM_BL +
+                        MCP.1*AGE_AT_VISIT*LEONENKO_APOE  + AGE_AT_VISIT.0+ (1| PROJID), ROSMAP.ep.sub, REML = FALSE)
+
+summary(model_COGN_WO)
+
+
+model_COGN_WO.tab<-tab_model(model_COGN_WO, p.val = "kr", show.stat=TRUE,show.se = TRUE)
+
+
+#ROSMAP.wo.sub$COGN_WO_ADJ <- resid(COGN_WO_ADJ_MODEL)
+
+
+WO <- ggplot(ROSMAP.wo.sub, aes(x = AGE_AT_VISIT, y = COGN_WO, color = as.factor(newvariable), linetype = as.factor(newvariable))) +
+  geom_smooth(method = "lm", se = TRUE, fullrange = TRUE, size = 1.5) +
+  labs(x = "Age",
+       y = "Memory",
+       color = "Group",
+       linetype = "Group") + 
+  theme_minimal() + ylim(-3, 3) + xlim(70, 100)  + 
+  theme(text = element_text(size = 16)) +  # Adjust size as needed
+  
+  scale_color_manual(values = c("1" = "salmon", "2" = "chartreuse4", "3" = "mediumpurple4", "4" = "cyan3"), labels = labels) +
+  scale_linetype_manual(values = c("1" = "dashed", "2" = "solid", "3" = "dotted", "4" = "dotdash"), labels = labels)
+
+WO
+
+
+#PROCESSING SPEED; 
+
+ROSMAP.ps.sub <- subset(ROSMAP.sub, complete.cases(COGN_PS,MCP.1,APOE_E4_STATUS) & COGDX<4)
+
+
+
+model_COGN_PS <- lmer(scale(COGN_PS) ~  MSEX + EDUC + RACE_RC + MED_CON_SUM_BL +
+                        MCP.1*AGE_AT_VISIT*LEONENKO_APOE  + AGE_AT_VISIT.0+ (1| PROJID), ROSMAP.ep.sub, REML = FALSE)
+
+summary(model_COGN_PS)
+
+
+model_COGN_PS.tab<-tab_model(model_COGN_PS, p.val = "kr", show.stat=TRUE,show.se = TRUE)
+
+
+#ROSMAP.ps.sub$COGN_PS_ADJ <- resid(COGN_PS_ADJ_MODEL)
+
+
+PS <- ggplot(ROSMAP.ps.sub, aes(x = AGE_AT_VISIT, y = COGN_PS, color = as.factor(newvariable), linetype = as.factor(newvariable))) +
+  geom_smooth(method = "lm", se = TRUE, fullrange = TRUE, size = 1.5) +
+  labs(x = "Age",
+       y = "Memory",
+       color = "Group",
+       linetype = "Group") + 
+  theme_minimal() + ylim(-3, 3) + xlim(70, 100)  + 
+  theme(text = element_text(size = 16)) +  # Adjust size as needed
+  
+  scale_color_manual(values = c("1" = "salmon", "2" = "chartreuse4", "3" = "mediumpurple4", "4" = "cyan3"), labels = labels) +
+  scale_linetype_manual(values = c("1" = "dashed", "2" = "solid", "3" = "dotted", "4" = "dotdash"), labels = labels)
+
+PS
+
+
+# SPLINE ANALYSES; 
+
+# #library(sjPlot)
+
+# #library(splines)
+# selvar<-c("APOE_E4_STATUS","COGN_EP", "CP_R.1", "ZEDUC","MSEX", "AGE_AT_VISIT","PROJID")
+# 
+# model.ep.spline <- lmer(COGN_EP ~ CP_R.1 + ns(AGE_AT_VISIT - 80, df = 3) + APOE_E4_STATUS + 
+#                           APOE_E4_STATUS*AGE_AT_VISIT + CP_R.1*AGE_AT_VISIT + 
+#                           CP_R.1*APOE_E4_STATUS + MSEX + ZEDUC + 
+#                           ns(CP_R.1*AGE_AT_VISIT*APOE_E4_STATUS, AGE_AT_VISIT - 80, df = 3) + (1| PROJID), ROSMAP, REML = FALSE)
+
+summary(model.ep.spline)
+
+pptx <- read_pptx()
+
+pptx %>%
+  add_slide() %>%
+  # This first line puts it in as a static png image for comparison
+  ph_with(ep, location = ph_location_type(type = "body")) %>%
+  add_slide() %>%
+  # This line puts in a shape object, which can be ungrouped and edited
+  ph_with(rvg::dml(ggobj = ep),
+          width = 8,
+          height = 4,
+          location = ph_location_type(type = "body"))
+
+#> pptx document with 2 slide(s)
+
+print(pptx, "ROSMAP_memory.pptx")
+
+
+pptx <- read_pptx()
+
+pptx %>%
+  add_slide() %>%
+  # This first line puts it in as a static png image for comparison
+  ph_with(PS, location = ph_location_type(type = "body")) %>%
+  add_slide() %>%
+  # This line puts in a shape object, which can be ungrouped and edited
+  ph_with(rvg::dml(ggobj = PS),
+          width = 8,
+          height = 4,
+          location = ph_location_type(type = "body"))
+
+#> pptx document with 2 slide(s)
+
+print(pptx, "ROSMAP_ps.pptx")
+
+
+pptx <- read_pptx()
+
+pptx %>%
+  add_slide() %>%
+  # This first line puts it in as a static png image for comparison
+  ph_with(WO, location = ph_location_type(type = "body")) %>%
+  add_slide() %>%
+  # This line puts in a shape object, which can be ungrouped and edited
+  ph_with(rvg::dml(ggobj = WO),
+          width = 8,
+          height = 4,
+          location = ph_location_type(type = "body"))
+
+#> pptx document with 2 slide(s)
+
+print(pptx, "ROSMAP_wo.pptx")
+
+pptx <- read_pptx()
+
+pptx %>%
+  add_slide() %>%
+  # This first line puts it in as a static png image for comparison
+  ph_with(GLOBAL, location = ph_location_type(type = "body")) %>%
+  add_slide() %>%
+  # This line puts in a shape object, which can be ungrouped and edited
+  ph_with(rvg::dml(ggobj = GLOBAL),
+          width = 8,
+          height = 4,
+          location = ph_location_type(type = "body"))
+
+#> pptx document with 2 slide(s)
+
+print(pptx, "ROSMAP_global.pptx")
+
+
+#######################################;
+#POST-MORTEM ANALYSES; 
+#######################################;
+#SUBSET DATA FOR POST-MORTEM CASES; 
+ROSMAP.amyloid.sub <- subset(ROSMAP, complete.cases(APOE_E4_STATUS,AMYLOID, MCP.1, EDUC,MSEX, AGE_DEATH,PROJID))
+
+#AMYLOID - GLOBAL; 
+ROSMAP.amyloid.sub$AMYLOID <- sqrt(ROSMAP.amyloid.sub$AMYLOID+10)
+
+model_AMYLOID <- lm(scale(AMYLOID_HIP) ~  MSEX + EDUC + RACE_RC + MED_CON_SUM_BL +
+                          MCP.1*AGE_DEATH*LEONENKO_APOE + ANALGESIC_RX + AGE_BL + PMI
+                        , ROSMAP.amyloid.sub)
+
+summary(model_AMYLOID)
+
+model_AMYLOID.tab<-tab_model(model_AMYLOID, p.val = "kr", show.stat=TRUE,show.se = TRUE)
+
+
+
+#AMYLOID - HIPPOCAMPUS; 
+ROSMAP.amyloid.sub$AMYLOID_HIP <- sqrt(ROSMAP.amyloid.sub$AMYLOID_HIP+10)
+
+model_AMYLOID_HIP <- lm(scale(AMYLOID_HIP) ~  MSEX + EDUC + RACE_RC + MED_CON_SUM_BL +
+                         MCP.1*AGE_DEATH*LEONENKO_APOE + ANALGESIC_RX + AGE_BL + PMI
+                       , ROSMAP.amyloid.sub)
+
+summary(model_AMYLOID_HIP)
+
+model_AMYLOID_HIP.tab<-tab_model(model_AMYLOID_HIP, p.val = "kr", show.stat=TRUE,show.se = TRUE)
+
+
+
+#AMYLOID - ENTORHINAL CORTEX; 
+ROSMAP.amyloid.sub$AMYLOID_EC <- sqrt(ROSMAP.amyloid.sub$AMYLOID_EC+10)
+
+model_AMYLOID_EC <- lm(scale(AMYLOID_EC) ~  MSEX + EDUC + RACE_RC + MED_CON_SUM_BL +
+               MCP.1*AGE_DEATH*LEONENKO_APOE + ANALGESIC_RX + AGE_BL + PMI
+             , ROSMAP.amyloid.sub)
+
+summary(model_AMYLOID_EC)
+
+model_AMYLOID_EC.tab<-tab_model(model_AMYLOID_EC, p.val = "kr", show.stat=TRUE,show.se = TRUE)
+
+
+
+#NFT - GLOBAL; 
+
+ROSMAP.amyloid.sub$NFT <- sqrt(ROSMAP.amyloid.sub$NFT+10)
+model_NFT <- lm(scale(NFT) ~  MSEX + EDUC + RACE_RC + MED_CON_SUM_BL +
+                      MCP.1*AGE_DEATH*LEONENKO_APOE + ANALGESIC_RX + AGE_BL + PMI
+                    , ROSMAP.amyloid.sub)
+
+summary(model_NFT)
+
+
+model_NFT.tab<-tab_model(model_NFT, p.val = "kr", show.stat=TRUE,show.se = TRUE)
+
+
+#NFT - HIPPOCAMPUS; 
+
+ROSMAP.amyloid.sub$NFT_HIP <- sqrt(ROSMAP.amyloid.sub$NFT_HIP+10)
+model_NFT_HIP <- lm(scale(NFT_HIP) ~  MSEX + EDUC + RACE_RC + MED_CON_SUM_BL +
+                         MCP.1*AGE_DEATH*LEONENKO_APOE + ANALGESIC_RX + AGE_BL + PMI
+                       , ROSMAP.amyloid.sub)
+
+summary(model_NFT_HIP)
+
+
+model_NFT_HIP.tab<-tab_model(model_NFT_HIP, p.val = "kr", show.stat=TRUE,show.se = TRUE)
+
+
+
+#NFT - ENTORHINAL CORTEX; 
+
+ROSMAP.amyloid.sub$NFT_EC <- sqrt(ROSMAP.amyloid.sub$NFT_EC+10)
+model_NFT_EC <- lm(scale(NFT_EC) ~  MSEX + EDUC + RACE_RC + MED_CON_SUM_BL +
+                      MCP.1*AGE_DEATH*LEONENKO_APOE + ANALGESIC_RX + AGE_BL + PMI
+                    , ROSMAP.amyloid.sub)
+
+summary(model_NFT_EC)
+
+model_NFT_EC.tab<-tab_model(model_NFT_EC, p.val = "kr", show.stat=TRUE,show.se = TRUE)
+
+
+
+AMYLOID_HIP <- ggplot(ROSMAP.amyloid.sub, aes(x = AGE_DEATH, y = AMYLOID_HIP, color = as.factor(newvariable), linetype = as.factor(newvariable))) +
+  geom_smooth(method = "lm", se = TRUE, fullrange = TRUE, size = 1.5) +
+  labs(x = "Age at Death",
+       y = "Amyloid in the Hippocampus",
+       color = "Group",
+       linetype = "Group") + 
+  theme_minimal() + 
+  theme(text = element_text(size = 16)) +  # Adjust size as needed
+  
+  scale_color_manual(values = c("1" = "salmon", "2" = "chartreuse4", "3" = "mediumpurple4", "4" = "cyan3"), labels = labels) +
+  scale_linetype_manual(values = c("1" = "dashed", "2" = "solid", "3" = "dotted", "4" = "dotdash"), labels = labels)
+
+AMYLOID_HIP
+
+
+pptx <- read_pptx()
+
+pptx %>%
+  add_slide() %>%
+  # This first line puts it in as a static png image for comparison
+  ph_with(AMYLOID_HIP, location = ph_location_type(type = "body")) %>%
+  add_slide() %>%
+  # This line puts in a shape object, which can be ungrouped and edited
+  ph_with(rvg::dml(ggobj = AMYLOID_HIP),
+          width = 8,
+          height = 4,
+          location = ph_location_type(type = "body"))
+
+#> pptx document with 2 slide(s)
+
+print(pptx, "ROSMAP_AMYLOID_HIP.pptx")
+
+
+AMYLOID_EC <- ggplot(ROSMAP.amyloid.sub, aes(x = AGE_DEATH, y = AMYLOID_EC, color = as.factor(newvariable), linetype = as.factor(newvariable))) +
+  geom_smooth(method = "lm", se = TRUE, fullrange = TRUE, size = 1.5) +
+  labs(x = "Age at Death",
+       y = "Amyloid in the Entorhinal Cortex",
+       color = "Group",
+       linetype = "Group") + 
+  theme_minimal() + 
+  theme(text = element_text(size = 16)) +  # Adjust size as needed
+  
+  scale_color_manual(values = c("1" = "salmon", "2" = "chartreuse4", "3" = "mediumpurple4", "4" = "cyan3"), labels = labels) +
+  scale_linetype_manual(values = c("1" = "dashed", "2" = "solid", "3" = "dotted", "4" = "dotdash"), labels = labels)
+
+AMYLOID_EC
+
+
+pptx <- read_pptx()
+
+pptx %>%
+  add_slide() %>%
+  # This first line puts it in as a static png image for comparison
+  ph_with(AMYLOID_EC, location = ph_location_type(type = "body")) %>%
+  add_slide() %>%
+  # This line puts in a shape object, which can be ungrouped and edited
+  ph_with(rvg::dml(ggobj = AMYLOID_EC),
+          width = 8,
+          height = 4,
+          location = ph_location_type(type = "body"))
+
+#> pptx document with 2 slide(s)
+
+print(pptx, "ROSMAP_AMYLOID_EC.pptx")
+
+
+#SUMMARY OF MODELS;
+
+model_COGN_GLOBAL.tab
+
+model_COGN_EP.tab
+
+model_COGN_WO.tab
+
+model_COGN_PS.tab
+
+model_AMYLOID.tab
+
+model_AMYLOID_HIP.tab
+
+model_AMYLOID_EC.tab
+
+
+model_NFT.tab
+
+model_NFT_HIP.tab
+
+model_NFT_EC.tab
